@@ -1,63 +1,90 @@
-"""
-Flask Documentation:     https://flask.palletsprojects.com/
-Jinja2 Documentation:    https://jinja.palletsprojects.com/
-Werkzeug Documentation:  https://werkzeug.palletsprojects.com/
-This file contains the routes for your application.
-"""
-
-from app import app
-from flask import render_template, request, redirect, url_for
-
-
-###
-# Routing for your application.
-###
+from flask import render_template, request, redirect, url_for, flash, send_from_directory
+from werkzeug.utils import secure_filename
+import os
+from app import app, db, mail
+from app.forms import PropertyForm, ContactForm
+from app.models import Property
+from flask_mail import Message
 
 @app.route('/')
 def home():
-    """Render website's home page."""
+    """Render the website's home page."""
     return render_template('home.html')
-
 
 @app.route('/about/')
 def about():
     """Render the website's about page."""
-    return render_template('about.html', name="Mary Jane")
+    return render_template('about.html', name="Josiah-John Green")
 
+@app.route('/properties')
+def properties():
+    """Render the website's property listing page."""
+    properties = Property.query.all()
+    return render_template('properties.html', properties=properties)
 
-###
-# The functions below should be applicable to all Flask apps.
-###
+@app.route('/properties/create', methods=['GET', 'POST'])
+def create():
+    """Render the property creation page and handle form submission."""
+    form = PropertyForm()
 
-# Display Flask WTF errors as Flash messages
-def flash_errors(form):
-    for field, errors in form.errors.items():
-        for error in errors:
-            flash(u"Error in the %s field - %s" % (
-                getattr(form, field).label.text,
-                error
-            ), 'danger')
+    if form.validate_on_submit():
+        try:
+            photo = form.photo.data
+            filename = secure_filename(photo.filename)
+            photo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-@app.route('/<file_name>.txt')
-def send_text_file(file_name):
-    """Send your static text file."""
-    file_dot_text = file_name + '.txt'
-    return app.send_static_file(file_dot_text)
+            property = Property(
+                title=form.title.data,
+                description=form.description.data,
+                bedrooms=form.bedrooms.data,
+                bathrooms=form.bathrooms.data,
+                price=form.price.data,
+                type=form.type.data,
+                location=form.location.data,
+                photo=filename
+            )
+            db.session.add(property)
+            db.session.commit()
+            
+            flash('Property added successfully!', 'success')
+            return redirect(url_for('properties'))
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            flash(f"An error occurred: {str(e)}", 'danger')
 
+    return render_template('create.html', form=form)
 
-@app.after_request
-def add_header(response):
-    """
-    Add headers to both force latest IE rendering engine or Chrome Frame,
-    and also tell the browser not to cache the rendered page. If we wanted
-    to we could change max-age to 600 seconds which would be 10 minutes.
-    """
-    response.headers['X-UA-Compatible'] = 'IE=Edge,chrome=1'
-    response.headers['Cache-Control'] = 'public, max-age=0'
-    return response
+@app.route('/uploads/<filename>')
+def photo(filename):
+    """Serve uploaded photos."""
+    return send_from_directory(os.path.join(os.getcwd(), app.config['UPLOAD_FOLDER']), filename)
 
+@app.route('/properties/<int:propertyid>')
+def view(propertyid):
+    """Render the page for a specific property."""
+    property = Property.query.get_or_404(propertyid)
+    return render_template('view.html', property=property, propertyid=propertyid)
 
-@app.errorhandler(404)
-def page_not_found(error):
-    """Custom 404 page."""
-    return render_template('404.html'), 404
+@app.route('/email/<int:propertyid>', methods=['GET', 'POST'])
+def email(propertyid):
+    """Process and send email."""
+    form = ContactForm()
+    property = Property.query.get_or_404(propertyid)
+
+    if form.validate_on_submit():
+        try:
+            name = form.name.data
+            email = form.email.data
+            subject = form.subject.data
+            message = form.message.data
+
+            msg = Message(subject, sender=(name, email), recipients=["recipient@example.com"])
+            msg.body = f"From: {name}\nEmail: {email}\nSubject: {subject}\n\n{message}"
+            mail.send(msg)
+
+            flash('Your message has been sent successfully!', 'success')
+            return redirect(url_for('properties'))
+        except Exception as e:
+            flash(f"An error occurred: {str(e)}", 'danger')
+
+    return render_template('email.html', form=form, property=property)

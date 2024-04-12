@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Agent</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Contact Agent</h1>
+    {% include 'flash-messages.html' %}
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div>
+            <label for="name">Name:</label><br>
+            {{ form.name }}
+        </div>
+        <div>
+            <label for="email">Email:</label><br>
+            {{ form.email }}
+        </div>
+        <div>
+            <label for="subject">Subject:</label><br>
+            {{ form.subject }}
+        </div>
+        <div>
+            <label for="message">Message:</label><br>
+            {{ form.message }}
+        </div>
+        <div>
+            <button type="submit">Send Email</button>
+        </div>
+    </form>
+</body>
+</html>
