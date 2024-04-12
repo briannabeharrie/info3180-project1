@@ -14,7 +14,7 @@ def home():
 @app.route('/about/')
 def about():
     """Render the website's about page."""
-    return render_template('about.html', name="Josiah-John Green")
+    return render_template('about.html', name="Brianna Beharrie")
 
 @app.route('/properties')
 def properties():
@@ -24,33 +24,28 @@ def properties():
 
 @app.route('/properties/create', methods=['GET', 'POST'])
 def create():
-    """Render the property creation page and handle form submission."""
     form = PropertyForm()
 
-    if form.validate_on_submit():
-        try:
-            photo = form.photo.data
-            filename = secure_filename(photo.filename)
-            photo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    if request.method == 'POST' and form.validate_on_submit():
+        photo = form.photo.data
+        filename = secure_filename(photo.filename)
+        photo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-            property = Property(
-                title=form.title.data,
-                description=form.description.data,
-                bedrooms=form.bedrooms.data,
-                bathrooms=form.bathrooms.data,
-                price=form.price.data,
-                type=form.type.data,
-                location=form.location.data,
-                photo=filename
-            )
-            db.session.add(property)
-            db.session.commit()
-            
-            flash('Property added successfully!', 'success')
-            return redirect(url_for('properties'))
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            flash(f"An error occurred: {str(e)}", 'danger')
+        property = Property(
+            title=form.title.data,
+            description=form.description.data,
+            bedrooms=form.bedrooms.data,
+            bathrooms=form.bathrooms.data,
+            price=form.price.data,
+            type=form.type.data,
+            location=form.location.data,
+            photo=filename
+        )
+        db.session.add(property)
+        db.session.commit()
+        
+        flash('Property added successfully!', 'success')
+        return redirect(url_for('properties'))
 
     return render_template('create.html', form=form)
 
